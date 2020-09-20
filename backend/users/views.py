@@ -9,8 +9,8 @@ from django.contrib.auth.models import User, Group
 from rest_framework import viewsets
 from backend.users.serializers import UserSerializer, GroupSerializer
 
-from django.http import JsonResponse
-from django.shortcuts import HttpResponse
+from rest_framework import status
+from rest_framework.response import Response
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.authtoken.models import Token
 from rest_framework.views import APIView
@@ -43,7 +43,8 @@ def login(request):
     password = receive.get('password')
     user = auth.authenticate(username=username, password=password)
     if not user:
-        return HttpResponse("用户名和密码不匹配")
+        msg = {"code": "-1", "msg": "用户名和密码不匹配"}
+        return Response(msg, status=status.HTTP_401_UNAUTHORIZED)
     # 校验通过
     # 删除原有的Token
     old_token = Token.objects.filter(user=user)
@@ -51,7 +52,23 @@ def login(request):
     # 创建新的Token
     token = Token.objects.create(user=user)
 
-    return JsonResponse({"username": user.username, "token": token.key})
+    msg = {"uid": user.id, "username": user.username, "api_token": token.key}
+    return Response(msg)
+
+
+@api_view(['POST'])
+def logout(request):
+    receive = request.data
+    username = request.user
+    user = User.objects.get(username=username)
+    if not user:
+        msg = {"data": {"code": "200", "msg": "退出"}}
+        return Response(msg, status=status.HTTP_200_OK)
+
+    old_token = Token.objects.filter(user=user)
+    old_token.delete()
+    msg = {"data": {"code": "200", "msg": "退出"}}
+    return Response(msg, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])
